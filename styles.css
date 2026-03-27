@@ -143,6 +143,7 @@ select {
 .logo {
   width: min(100%, 200px);
   height: auto;
+  background-image: url('./assets/images/logo.svg');
 }
 
 .content-layout {
