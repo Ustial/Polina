@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Небольшой сайт с рандомными комплиментами и фото." />
+  <title>Привет, Полина</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <div class="page-shell">
+      <header class="page-header">
+        <img class="logo" src="assets/images/logo.svg" alt="Привет, Полина" />
+      </header>
+
+      <section class="content-layout" aria-label="Фото и карточка с комплиментом">
+        <figure class="photo-frame soft-shadow" id="photoFrame">
+          <img id="mainPhoto" src="assets/images/photos/1.png" alt="Фото 1" />
+        </figure>
+
+        <section class="interaction-column">
+          <div class="flip-card" aria-live="polite">
+            <div class="flip-card-inner" id="flipCardInner">
+              <article class="compliment-card soft-shadow flip-card-front">
+                <div class="compliment-title-pill">КОМПЛИМЕНТ ДЛЯ ТЕБЯ</div>
+                <img class="heart heart-left" src="assets/icons/ht1.svg" alt="" aria-hidden="true" />
+                <div class="compliment-body">
+                  <p class="compliment-text" id="complimentTextFront"></p>
+                </div>
+                <img class="heart heart-right" src="assets/icons/ht2.svg" alt="" aria-hidden="true" />
+              </article>
+
+              <article class="compliment-card soft-shadow flip-card-back" aria-hidden="true">
+                <div class="compliment-title-pill">КОМПЛИМЕНТ ДЛЯ ТЕБЯ</div>
+                <img class="heart heart-left" src="assets/icons/ht1.svg" alt="" aria-hidden="true" />
+                <div class="compliment-body">
+                  <p class="compliment-text" id="complimentTextBack"></p>
+                </div>
+                <img class="heart heart-right" src="assets/icons/ht2.svg" alt="" aria-hidden="true" />
+              </article>
+            </div>
+          </div>
+
+          <div class="button-frame soft-shadow">
+            <button class="button" id="moreButton" type="button" aria-label="Показать новый комплимент и фото">
+              <div class="button-outer">
+                <div class="button-inner">
+                  <span>Я ХОЧУ ЕЩЁ!</span>
+                </div>
+              </div>
+            </button>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script src="data/compliments.js"></script>
+  <script src="data/photos.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
