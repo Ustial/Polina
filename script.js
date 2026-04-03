@@ -8,9 +8,9 @@ const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
-const PHOTO_SHRINK_MS = 90;
-const PHOTO_GROW_MS = 130;
-const FLIP_DURATION_MS = 420;
+const PHOTO_ENTER_DELAY_MS = 40;
+const PHOTO_SWAP_DONE_MS = 560;
+const FLIP_DURATION_MS = 560;
 
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
@@ -105,6 +105,41 @@ function initializeContent() {
   applyPhoto(currentPhotoIndex);
 }
 
+function preloadPhoto(src) {
+  if (loadedPhotoSrcSet.has(src)) {
+    return Promise.resolve();
+  }
+
+  if (photoPreloadPromises.has(src)) {
+    return photoPreloadPromises.get(src);
+  }
+
+  const preloadPromise = new Promise((resolve) => {
+    const image = new Image();
+
+    image.onload = () => {
+      loadedPhotoSrcSet.add(src);
+      resolve();
+    };
+
+    image.onerror = () => {
+      resolve();
+    };
+
+    image.src = src;
+  });
+
+  photoPreloadPromises.set(src, preloadPromise);
+  return preloadPromise;
+}
+
+function warmupPhotoCache() {
+  photos.forEach((item) => {
+    const { src } = normalizePhoto(item);
+    preloadPhoto(src);
+  });
+}
+
 function setPressedState(isPressed) {
   moreButton.classList.toggle('is-pressed', isPressed);
 }
@@ -114,18 +149,31 @@ function clearPressedState() {
 }
 
 function runPhotoSwap(nextPhotoData) {
-  mainPhoto.classList.add('is-shrinking');
+  nextPhoto.src = nextPhotoData.src;
+  nextPhoto.alt = nextPhotoData.alt;
+
+  nextPhoto.style.zIndex = '2';
+  mainPhoto.style.zIndex = '1';
+  nextPhoto.classList.remove('is-exit-out');
+  mainPhoto.classList.add('is-exit-out');
+
+  window.setTimeout(() => {
+    nextPhoto.classList.add('is-active');
+  }, PHOTO_ENTER_DELAY_MS);
 
   window.setTimeout(() => {
     mainPhoto.src = nextPhotoData.src;
     mainPhoto.alt = nextPhotoData.alt;
-    mainPhoto.classList.remove('is-shrinking');
-    mainPhoto.classList.add('is-growing');
+    mainPhoto.classList.add('is-active');
+    mainPhoto.classList.remove('is-exit-out');
 
-    window.setTimeout(() => {
-      mainPhoto.classList.remove('is-growing');
-    }, PHOTO_GROW_MS);
-  }, PHOTO_SHRINK_MS);
+    nextPhoto.classList.remove('is-active');
+    nextPhoto.classList.remove('is-exit-out');
+    nextPhoto.alt = '';
+
+    nextPhoto.style.zIndex = '';
+    mainPhoto.style.zIndex = '';
+  }, PHOTO_SWAP_DONE_MS);
 }
 
 function swapToNext() {
@@ -146,7 +194,14 @@ function swapToNext() {
 
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
-  runPhotoSwap(nextPhotoData);
+
+  if (loadedPhotoSrcSet.has(nextPhotoData.src)) {
+    runPhotoSwap(nextPhotoData);
+  } else {
+    preloadPhoto(nextPhotoData.src).then(() => {
+      runPhotoSwap(nextPhotoData);
+    });
+  }
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -180,9 +235,10 @@ mainPhoto.addEventListener('error', () => {
   mainPhoto.alt = 'Фото';
 });
 
-if (nextPhoto) {
-  nextPhoto.setAttribute('aria-hidden', 'true');
-}
+nextPhoto.addEventListener('error', () => {
+  nextPhoto.src = 'assets/images/photos/1.png';
+  nextPhoto.alt = '';
+});
 
 initializeContent();
 warmupPhotoCache();
