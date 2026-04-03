@@ -189,6 +189,7 @@ select {
   display: none;
 }
 
+
 .interaction-column {
   width: min(100%, var(--content-width));
   display: grid;
