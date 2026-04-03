@@ -8,7 +8,8 @@ const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
-const PHOTO_FADE_MS = 180;
+const PHOTO_ENTER_DELAY_MS = 40;
+const PHOTO_SWAP_DONE_MS = 560;
 const FLIP_DURATION_MS = 560;
 
 let currentComplimentIndex = 0;
@@ -151,18 +152,28 @@ function runPhotoSwap(nextPhotoData) {
   nextPhoto.src = nextPhotoData.src;
   nextPhoto.alt = nextPhotoData.alt;
 
-  window.requestAnimationFrame(() => {
+  nextPhoto.style.zIndex = '2';
+  mainPhoto.style.zIndex = '1';
+  nextPhoto.classList.remove('is-exit-out');
+  mainPhoto.classList.add('is-exit-out');
+
+  window.setTimeout(() => {
     nextPhoto.classList.add('is-active');
-    mainPhoto.classList.remove('is-active');
-  });
+  }, PHOTO_ENTER_DELAY_MS);
 
   window.setTimeout(() => {
     mainPhoto.src = nextPhotoData.src;
     mainPhoto.alt = nextPhotoData.alt;
     mainPhoto.classList.add('is-active');
+    mainPhoto.classList.remove('is-exit-out');
+
     nextPhoto.classList.remove('is-active');
+    nextPhoto.classList.remove('is-exit-out');
     nextPhoto.alt = '';
-  }, PHOTO_FADE_MS);
+
+    nextPhoto.style.zIndex = '';
+    mainPhoto.style.zIndex = '';
+  }, PHOTO_SWAP_DONE_MS);
 }
 
 function swapToNext() {
