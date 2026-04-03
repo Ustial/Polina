@@ -3,18 +3,20 @@ const photos = Array.isArray(window.PHOTOS) ? window.PHOTOS : [];
 
 const mainPhoto = document.getElementById('mainPhoto');
 const nextPhoto = document.getElementById('nextPhoto');
-const photoFrame = document.getElementById('photoFrame');
 const frontText = document.getElementById('complimentTextFront');
 const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
-const PHOTO_FADE_MS = 220;
-const FLIP_DURATION_MS = 820;
+const PHOTO_FADE_MS = 180;
+const FLIP_DURATION_MS = 560;
 
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
 let isAnimating = false;
+
+const loadedPhotoSrcSet = new Set();
+const photoPreloadPromises = new Map();
 
 function safeTextFromList(list, index, fallback) {
   return list[index] ?? fallback;
@@ -46,6 +48,28 @@ function pickDifferentIndex(list, currentIndex) {
   return nextIndex;
 }
 
+function pickFastPhotoIndex() {
+  if (!Array.isArray(photos) || photos.length <= 1) {
+    return pickDifferentIndex(photos, currentPhotoIndex);
+  }
+
+  const loadedIndexes = [];
+  for (let i = 0; i < photos.length; i += 1) {
+    if (i === currentPhotoIndex) continue;
+    const { src } = normalizePhoto(photos[i]);
+    if (loadedPhotoSrcSet.has(src)) {
+      loadedIndexes.push(i);
+    }
+  }
+
+  if (loadedIndexes.length > 0) {
+    const randomLoadedIndex = Math.floor(Math.random() * loadedIndexes.length);
+    return loadedIndexes[randomLoadedIndex];
+  }
+
+  return pickDifferentIndex(photos, currentPhotoIndex);
+}
+
 function applyCompliment(index) {
   const text = safeTextFromList(
     compliments,
@@ -64,6 +88,7 @@ function applyPhoto(index) {
   nextPhoto.alt = '';
   mainPhoto.classList.add('is-active');
   nextPhoto.classList.remove('is-active');
+  loadedPhotoSrcSet.add(photo.src);
 }
 
 function initializeContent() {
@@ -80,12 +105,37 @@ function initializeContent() {
 }
 
 function preloadPhoto(src) {
-  return new Promise((resolve) => {
+  if (loadedPhotoSrcSet.has(src)) {
+    return Promise.resolve();
+  }
+
+  if (photoPreloadPromises.has(src)) {
+    return photoPreloadPromises.get(src);
+  }
+
+  const preloadPromise = new Promise((resolve) => {
     const image = new Image();
 
-    image.onload = resolve;
-    image.onerror = resolve;
+    image.onload = () => {
+      loadedPhotoSrcSet.add(src);
+      resolve();
+    };
+
+    image.onerror = () => {
+      resolve();
+    };
+
     image.src = src;
+  });
+
+  photoPreloadPromises.set(src, preloadPromise);
+  return preloadPromise;
+}
+
+function warmupPhotoCache() {
+  photos.forEach((item) => {
+    const { src } = normalizePhoto(item);
+    preloadPhoto(src);
   });
 }
 
@@ -97,13 +147,31 @@ function clearPressedState() {
   setPressedState(false);
 }
 
-async function swapToNext() {
+function runPhotoSwap(nextPhotoData) {
+  nextPhoto.src = nextPhotoData.src;
+  nextPhoto.alt = nextPhotoData.alt;
+
+  window.requestAnimationFrame(() => {
+    nextPhoto.classList.add('is-active');
+    mainPhoto.classList.remove('is-active');
+  });
+
+  window.setTimeout(() => {
+    mainPhoto.src = nextPhotoData.src;
+    mainPhoto.alt = nextPhotoData.alt;
+    mainPhoto.classList.add('is-active');
+    nextPhoto.classList.remove('is-active');
+    nextPhoto.alt = '';
+  }, PHOTO_FADE_MS);
+}
+
+function swapToNext() {
   if (isAnimating) return;
   isAnimating = true;
   moreButton.disabled = true;
 
   const nextComplimentIndex = pickDifferentIndex(compliments, currentComplimentIndex);
-  const nextPhotoIndex = pickDifferentIndex(photos, currentPhotoIndex);
+  const nextPhotoIndex = pickFastPhotoIndex();
 
   const nextCompliment = safeTextFromList(
     compliments,
@@ -116,22 +184,13 @@ async function swapToNext() {
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
 
-  await preloadPhoto(nextPhotoData.src);
-
-  nextPhoto.src = nextPhotoData.src;
-  nextPhoto.alt = nextPhotoData.alt;
-  photoFrame.classList.add('is-changing');
-  nextPhoto.classList.add('is-active');
-  mainPhoto.classList.remove('is-active');
-
-  window.setTimeout(() => {
-    mainPhoto.src = nextPhotoData.src;
-    mainPhoto.alt = nextPhotoData.alt;
-    mainPhoto.classList.add('is-active');
-    nextPhoto.classList.remove('is-active');
-    nextPhoto.alt = '';
-    photoFrame.classList.remove('is-changing');
-  }, PHOTO_FADE_MS);
+  if (loadedPhotoSrcSet.has(nextPhotoData.src)) {
+    runPhotoSwap(nextPhotoData);
+  } else {
+    preloadPhoto(nextPhotoData.src).then(() => {
+      runPhotoSwap(nextPhotoData);
+    });
+  }
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -171,3 +230,4 @@ nextPhoto.addEventListener('error', () => {
 });
 
 initializeContent();
+warmupPhotoCache();

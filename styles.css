@@ -160,7 +160,6 @@ select {
   overflow: hidden;
   box-shadow: var(--shadow-photo);
   background: rgba(255, 255, 255, 0.72);
-  transition: opacity 220ms ease;
 }
 
 .photo-image {
@@ -170,16 +169,13 @@ select {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity 180ms ease;
 }
 
 .photo-image.is-active {
   opacity: 1;
 }
 
-.photo-frame.is-changing {
-  opacity: 0.99;
-}
 
 .interaction-column {
   width: min(100%, var(--content-width));
@@ -199,7 +195,7 @@ select {
   width: 100%;
   min-height: 188px;
   transform-style: preserve-3d;
-  transition: transform 0.8s cubic-bezier(0.2, 0.68, 0.2, 1);
+  transition: transform 0.56s cubic-bezier(0.22, 0.72, 0.2, 1);
 }
 
 .flip-card-inner.is-flipping {
