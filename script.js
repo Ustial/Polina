@@ -47,6 +47,28 @@ function pickDifferentIndex(list, currentIndex) {
   return nextIndex;
 }
 
+function pickFastPhotoIndex() {
+  if (!Array.isArray(photos) || photos.length <= 1) {
+    return pickDifferentIndex(photos, currentPhotoIndex);
+  }
+
+  const loadedIndexes = [];
+  for (let i = 0; i < photos.length; i += 1) {
+    if (i === currentPhotoIndex) continue;
+    const { src } = normalizePhoto(photos[i]);
+    if (loadedPhotoSrcSet.has(src)) {
+      loadedIndexes.push(i);
+    }
+  }
+
+  if (loadedIndexes.length > 0) {
+    const randomLoadedIndex = Math.floor(Math.random() * loadedIndexes.length);
+    return loadedIndexes[randomLoadedIndex];
+  }
+
+  return pickDifferentIndex(photos, currentPhotoIndex);
+}
+
 function applyCompliment(index) {
   const text = safeTextFromList(
     compliments,
@@ -123,7 +145,7 @@ function swapToNext() {
   moreButton.disabled = true;
 
   const nextComplimentIndex = pickDifferentIndex(compliments, currentComplimentIndex);
-  const nextPhotoIndex = pickDifferentIndex(photos, currentPhotoIndex);
+  const nextPhotoIndex = pickFastPhotoIndex();
 
   const nextCompliment = safeTextFromList(
     compliments,
