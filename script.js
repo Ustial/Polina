@@ -15,6 +15,9 @@ let currentPhotoIndex = 0;
 let isAnimating = false;
 let activePhotoElement = mainPhoto;
 
+const loadedPhotoSrcSet = new Set();
+const photoPreloadPromises = new Map();
+
 function safeTextFromList(list, index, fallback) {
   return list[index] ?? fallback;
 }
@@ -43,6 +46,28 @@ function pickDifferentIndex(list, currentIndex) {
     nextIndex = Math.floor(Math.random() * list.length);
   }
   return nextIndex;
+}
+
+function pickFastPhotoIndex() {
+  if (!Array.isArray(photos) || photos.length <= 1) {
+    return pickDifferentIndex(photos, currentPhotoIndex);
+  }
+
+  const loadedIndexes = [];
+  for (let i = 0; i < photos.length; i += 1) {
+    if (i === currentPhotoIndex) continue;
+    const { src } = normalizePhoto(photos[i]);
+    if (loadedPhotoSrcSet.has(src)) {
+      loadedIndexes.push(i);
+    }
+  }
+
+  if (loadedIndexes.length > 0) {
+    const randomLoadedIndex = Math.floor(Math.random() * loadedIndexes.length);
+    return loadedIndexes[randomLoadedIndex];
+  }
+
+  return pickDifferentIndex(photos, currentPhotoIndex);
 }
 
 function applyCompliment(index) {
@@ -115,7 +140,7 @@ function swapToNext() {
   moreButton.disabled = true;
 
   const nextComplimentIndex = pickDifferentIndex(compliments, currentComplimentIndex);
-  const nextPhotoIndex = pickDifferentIndex(photos, currentPhotoIndex);
+  const nextPhotoIndex = pickFastPhotoIndex();
 
   const nextCompliment = safeTextFromList(
     compliments,
@@ -171,4 +196,10 @@ if (nextPhoto) {
   nextPhoto.setAttribute('aria-hidden', 'true');
 }
 
+nextPhoto.addEventListener('error', () => {
+  nextPhoto.src = 'assets/images/photos/1.png';
+  nextPhoto.alt = '';
+});
+
 initializeContent();
+warmupPhotoCache();
