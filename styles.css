@@ -168,25 +168,25 @@ select {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: none;
+}
+
+.photo-image.is-active {
   opacity: 1;
   transform: scale(1);
   transition:
-    transform 120ms ease,
-    opacity 120ms ease;
+    transform 0.65s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.18s ease;
 }
 
-.photo-image.is-shrinking {
-  transform: scale(0.97);
-  opacity: 0.88;
-}
-
-.photo-image.is-growing {
-  transform: scale(1.02);
-  opacity: 1;
-}
-
-#nextPhoto {
-  display: none;
+.photo-image.is-exit-out {
+  transition:
+    transform 0.42s cubic-bezier(0.55, 0, 1, 0.45),
+    opacity 0.35s ease;
+  transform: scale(0.94);
+  opacity: 0;
 }
 
 
@@ -208,7 +208,7 @@ select {
   width: 100%;
   min-height: 188px;
   transform-style: preserve-3d;
-  transition: transform 0.42s cubic-bezier(0.22, 0.72, 0.2, 1);
+  transition: transform 0.56s cubic-bezier(0.22, 0.72, 0.2, 1);
 }
 
 .flip-card-inner.is-flipping {
