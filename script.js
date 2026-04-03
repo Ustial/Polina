@@ -8,13 +8,12 @@ const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
-const PHOTO_ENTER_DELAY_MS = 40;
-const PHOTO_SWAP_DONE_MS = 560;
-const FLIP_DURATION_MS = 560;
+const FLIP_DURATION_MS = 420;
 
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
 let isAnimating = false;
+let activePhotoElement = mainPhoto;
 
 const loadedPhotoSrcSet = new Set();
 const photoPreloadPromises = new Map();
@@ -85,11 +84,10 @@ function applyPhoto(index) {
   const photo = normalizePhoto(photos[index]);
   mainPhoto.src = photo.src;
   mainPhoto.alt = photo.alt;
-  nextPhoto.src = photo.src;
-  nextPhoto.alt = '';
   mainPhoto.classList.add('is-active');
+  nextPhoto.src = photo.src;
+  nextPhoto.alt = photo.alt;
   nextPhoto.classList.remove('is-active');
-  loadedPhotoSrcSet.add(photo.src);
 }
 
 function initializeContent() {
@@ -105,41 +103,6 @@ function initializeContent() {
   applyPhoto(currentPhotoIndex);
 }
 
-function preloadPhoto(src) {
-  if (loadedPhotoSrcSet.has(src)) {
-    return Promise.resolve();
-  }
-
-  if (photoPreloadPromises.has(src)) {
-    return photoPreloadPromises.get(src);
-  }
-
-  const preloadPromise = new Promise((resolve) => {
-    const image = new Image();
-
-    image.onload = () => {
-      loadedPhotoSrcSet.add(src);
-      resolve();
-    };
-
-    image.onerror = () => {
-      resolve();
-    };
-
-    image.src = src;
-  });
-
-  photoPreloadPromises.set(src, preloadPromise);
-  return preloadPromise;
-}
-
-function warmupPhotoCache() {
-  photos.forEach((item) => {
-    const { src } = normalizePhoto(item);
-    preloadPhoto(src);
-  });
-}
-
 function setPressedState(isPressed) {
   moreButton.classList.toggle('is-pressed', isPressed);
 }
@@ -148,32 +111,27 @@ function clearPressedState() {
   setPressedState(false);
 }
 
+function preloadPhoto(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = resolve;
+    img.onerror = resolve;
+    img.src = src;
+  });
+}
+
 function runPhotoSwap(nextPhotoData) {
-  nextPhoto.src = nextPhotoData.src;
-  nextPhoto.alt = nextPhotoData.alt;
+  const fromPhoto = activePhotoElement;
+  const toPhoto = fromPhoto === mainPhoto ? nextPhoto : mainPhoto;
 
-  nextPhoto.style.zIndex = '2';
-  mainPhoto.style.zIndex = '1';
-  nextPhoto.classList.remove('is-exit-out');
-  mainPhoto.classList.add('is-exit-out');
+  toPhoto.src = nextPhotoData.src;
+  toPhoto.alt = nextPhotoData.alt;
 
-  window.setTimeout(() => {
-    nextPhoto.classList.add('is-active');
-  }, PHOTO_ENTER_DELAY_MS);
-
-  window.setTimeout(() => {
-    mainPhoto.src = nextPhotoData.src;
-    mainPhoto.alt = nextPhotoData.alt;
-    mainPhoto.classList.add('is-active');
-    mainPhoto.classList.remove('is-exit-out');
-
-    nextPhoto.classList.remove('is-active');
-    nextPhoto.classList.remove('is-exit-out');
-    nextPhoto.alt = '';
-
-    nextPhoto.style.zIndex = '';
-    mainPhoto.style.zIndex = '';
-  }, PHOTO_SWAP_DONE_MS);
+  requestAnimationFrame(() => {
+    toPhoto.classList.add('is-active');
+    fromPhoto.classList.remove('is-active');
+    activePhotoElement = toPhoto;
+  });
 }
 
 function swapToNext() {
@@ -194,14 +152,9 @@ function swapToNext() {
 
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
-
-  if (loadedPhotoSrcSet.has(nextPhotoData.src)) {
+  preloadPhoto(nextPhotoData.src).then(() => {
     runPhotoSwap(nextPhotoData);
-  } else {
-    preloadPhoto(nextPhotoData.src).then(() => {
-      runPhotoSwap(nextPhotoData);
-    });
-  }
+  });
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -230,10 +183,18 @@ moreButton.addEventListener('lostpointercapture', clearPressedState);
 moreButton.addEventListener('blur', clearPressedState);
 moreButton.addEventListener('click', swapToNext);
 
-mainPhoto.addEventListener('error', () => {
-  mainPhoto.src = 'assets/images/photos/1.png';
-  mainPhoto.alt = 'Фото';
-});
+function handlePhotoError(event) {
+  const photoElement = event.currentTarget;
+  photoElement.src = 'assets/images/photos/1.png';
+  photoElement.alt = 'Фото';
+}
+
+mainPhoto.addEventListener('error', handlePhotoError);
+nextPhoto.addEventListener('error', handlePhotoError);
+
+if (nextPhoto) {
+  nextPhoto.setAttribute('aria-hidden', 'true');
+}
 
 nextPhoto.addEventListener('error', () => {
   nextPhoto.src = 'assets/images/photos/1.png';
