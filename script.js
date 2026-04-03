@@ -2,15 +2,21 @@ const compliments = Array.isArray(window.COMPLIMENTS) ? window.COMPLIMENTS : [];
 const photos = Array.isArray(window.PHOTOS) ? window.PHOTOS : [];
 
 const mainPhoto = document.getElementById('mainPhoto');
-const photoFrame = document.getElementById('photoFrame');
+const nextPhoto = document.getElementById('nextPhoto');
 const frontText = document.getElementById('complimentTextFront');
 const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
+const PHOTO_FADE_MS = 180;
+const FLIP_DURATION_MS = 560;
+
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
 let isAnimating = false;
+
+const loadedPhotoSrcSet = new Set();
+const photoPreloadPromises = new Map();
 
 function safeTextFromList(list, index, fallback) {
   return list[index] ?? fallback;
@@ -42,6 +48,28 @@ function pickDifferentIndex(list, currentIndex) {
   return nextIndex;
 }
 
+function pickFastPhotoIndex() {
+  if (!Array.isArray(photos) || photos.length <= 1) {
+    return pickDifferentIndex(photos, currentPhotoIndex);
+  }
+
+  const loadedIndexes = [];
+  for (let i = 0; i < photos.length; i += 1) {
+    if (i === currentPhotoIndex) continue;
+    const { src } = normalizePhoto(photos[i]);
+    if (loadedPhotoSrcSet.has(src)) {
+      loadedIndexes.push(i);
+    }
+  }
+
+  if (loadedIndexes.length > 0) {
+    const randomLoadedIndex = Math.floor(Math.random() * loadedIndexes.length);
+    return loadedIndexes[randomLoadedIndex];
+  }
+
+  return pickDifferentIndex(photos, currentPhotoIndex);
+}
+
 function applyCompliment(index) {
   const text = safeTextFromList(
     compliments,
@@ -56,6 +84,11 @@ function applyPhoto(index) {
   const photo = normalizePhoto(photos[index]);
   mainPhoto.src = photo.src;
   mainPhoto.alt = photo.alt;
+  nextPhoto.src = photo.src;
+  nextPhoto.alt = '';
+  mainPhoto.classList.add('is-active');
+  nextPhoto.classList.remove('is-active');
+  loadedPhotoSrcSet.add(photo.src);
 }
 
 function initializeContent() {
@@ -71,12 +104,74 @@ function initializeContent() {
   applyPhoto(currentPhotoIndex);
 }
 
+function preloadPhoto(src) {
+  if (loadedPhotoSrcSet.has(src)) {
+    return Promise.resolve();
+  }
+
+  if (photoPreloadPromises.has(src)) {
+    return photoPreloadPromises.get(src);
+  }
+
+  const preloadPromise = new Promise((resolve) => {
+    const image = new Image();
+
+    image.onload = () => {
+      loadedPhotoSrcSet.add(src);
+      resolve();
+    };
+
+    image.onerror = () => {
+      resolve();
+    };
+
+    image.src = src;
+  });
+
+  photoPreloadPromises.set(src, preloadPromise);
+  return preloadPromise;
+}
+
+function warmupPhotoCache() {
+  photos.forEach((item) => {
+    const { src } = normalizePhoto(item);
+    preloadPhoto(src);
+  });
+}
+
+function setPressedState(isPressed) {
+  moreButton.classList.toggle('is-pressed', isPressed);
+}
+
+function clearPressedState() {
+  setPressedState(false);
+}
+
+function runPhotoSwap(nextPhotoData) {
+  nextPhoto.src = nextPhotoData.src;
+  nextPhoto.alt = nextPhotoData.alt;
+
+  window.requestAnimationFrame(() => {
+    nextPhoto.classList.add('is-active');
+    mainPhoto.classList.remove('is-active');
+  });
+
+  window.setTimeout(() => {
+    mainPhoto.src = nextPhotoData.src;
+    mainPhoto.alt = nextPhotoData.alt;
+    mainPhoto.classList.add('is-active');
+    nextPhoto.classList.remove('is-active');
+    nextPhoto.alt = '';
+  }, PHOTO_FADE_MS);
+}
+
 function swapToNext() {
   if (isAnimating) return;
   isAnimating = true;
+  moreButton.disabled = true;
 
   const nextComplimentIndex = pickDifferentIndex(compliments, currentComplimentIndex);
-  const nextPhotoIndex = pickDifferentIndex(photos, currentPhotoIndex);
+  const nextPhotoIndex = pickFastPhotoIndex();
 
   const nextCompliment = safeTextFromList(
     compliments,
@@ -84,16 +179,18 @@ function swapToNext() {
     'У тебя есть редкий дар: делать пространство спокойнее одним своим присутствием.'
   );
 
+  const nextPhotoData = normalizePhoto(photos[nextPhotoIndex]);
+
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
-  photoFrame.classList.add('is-changing');
 
-  const nextPhoto = normalizePhoto(photos[nextPhotoIndex]);
-
-  window.setTimeout(() => {
-    mainPhoto.src = nextPhoto.src;
-    mainPhoto.alt = nextPhoto.alt;
-  }, 260);
+  if (loadedPhotoSrcSet.has(nextPhotoData.src)) {
+    runPhotoSwap(nextPhotoData);
+  } else {
+    preloadPhoto(nextPhotoData.src).then(() => {
+      runPhotoSwap(nextPhotoData);
+    });
+  }
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -106,12 +203,20 @@ function swapToNext() {
     void flipCardInner.offsetWidth;
 
     flipCardInner.classList.remove('no-transition');
-    photoFrame.classList.remove('is-changing');
 
     isAnimating = false;
-  }, 820);
+    moreButton.disabled = false;
+  }, FLIP_DURATION_MS);
 }
 
+moreButton.addEventListener('pointerdown', () => {
+  setPressedState(true);
+});
+
+moreButton.addEventListener('pointerup', clearPressedState);
+moreButton.addEventListener('pointercancel', clearPressedState);
+moreButton.addEventListener('lostpointercapture', clearPressedState);
+moreButton.addEventListener('blur', clearPressedState);
 moreButton.addEventListener('click', swapToNext);
 
 mainPhoto.addEventListener('error', () => {
@@ -119,4 +224,10 @@ mainPhoto.addEventListener('error', () => {
   mainPhoto.alt = 'Фото';
 });
 
+nextPhoto.addEventListener('error', () => {
+  nextPhoto.src = 'assets/images/photos/1.png';
+  nextPhoto.alt = '';
+});
+
 initializeContent();
+warmupPhotoCache();
