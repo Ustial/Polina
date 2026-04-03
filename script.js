@@ -2,11 +2,15 @@ const compliments = Array.isArray(window.COMPLIMENTS) ? window.COMPLIMENTS : [];
 const photos = Array.isArray(window.PHOTOS) ? window.PHOTOS : [];
 
 const mainPhoto = document.getElementById('mainPhoto');
-const photoFrame = document.getElementById('photoFrame');
+const nextPhoto = document.getElementById('nextPhoto');
 const frontText = document.getElementById('complimentTextFront');
 const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
+
+const PHOTO_SHRINK_MS = 90;
+const PHOTO_GROW_MS = 130;
+const FLIP_DURATION_MS = 420;
 
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
@@ -71,9 +75,33 @@ function initializeContent() {
   applyPhoto(currentPhotoIndex);
 }
 
+function setPressedState(isPressed) {
+  moreButton.classList.toggle('is-pressed', isPressed);
+}
+
+function clearPressedState() {
+  setPressedState(false);
+}
+
+function runPhotoSwap(nextPhotoData) {
+  mainPhoto.classList.add('is-shrinking');
+
+  window.setTimeout(() => {
+    mainPhoto.src = nextPhotoData.src;
+    mainPhoto.alt = nextPhotoData.alt;
+    mainPhoto.classList.remove('is-shrinking');
+    mainPhoto.classList.add('is-growing');
+
+    window.setTimeout(() => {
+      mainPhoto.classList.remove('is-growing');
+    }, PHOTO_GROW_MS);
+  }, PHOTO_SHRINK_MS);
+}
+
 function swapToNext() {
   if (isAnimating) return;
   isAnimating = true;
+  moreButton.disabled = true;
 
   const nextComplimentIndex = pickDifferentIndex(compliments, currentComplimentIndex);
   const nextPhotoIndex = pickDifferentIndex(photos, currentPhotoIndex);
@@ -84,16 +112,11 @@ function swapToNext() {
     'У тебя есть редкий дар: делать пространство спокойнее одним своим присутствием.'
   );
 
+  const nextPhotoData = normalizePhoto(photos[nextPhotoIndex]);
+
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
-  photoFrame.classList.add('is-changing');
-
-  const nextPhoto = normalizePhoto(photos[nextPhotoIndex]);
-
-  window.setTimeout(() => {
-    mainPhoto.src = nextPhoto.src;
-    mainPhoto.alt = nextPhoto.alt;
-  }, 260);
+  runPhotoSwap(nextPhotoData);
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -106,17 +129,29 @@ function swapToNext() {
     void flipCardInner.offsetWidth;
 
     flipCardInner.classList.remove('no-transition');
-    photoFrame.classList.remove('is-changing');
 
     isAnimating = false;
-  }, 820);
+    moreButton.disabled = false;
+  }, FLIP_DURATION_MS);
 }
 
+moreButton.addEventListener('pointerdown', () => {
+  setPressedState(true);
+});
+
+moreButton.addEventListener('pointerup', clearPressedState);
+moreButton.addEventListener('pointercancel', clearPressedState);
+moreButton.addEventListener('lostpointercapture', clearPressedState);
+moreButton.addEventListener('blur', clearPressedState);
 moreButton.addEventListener('click', swapToNext);
 
 mainPhoto.addEventListener('error', () => {
   mainPhoto.src = 'assets/images/photos/1.png';
   mainPhoto.alt = 'Фото';
 });
+
+if (nextPhoto) {
+  nextPhoto.setAttribute('aria-hidden', 'true');
+}
 
 initializeContent();
