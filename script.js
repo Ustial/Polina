@@ -8,15 +8,14 @@ const backText = document.getElementById('complimentTextBack');
 const flipCardInner = document.getElementById('flipCardInner');
 const moreButton = document.getElementById('moreButton');
 
-const FLIP_DURATION_MS = 420;
+const FLIP_DURATION_MS = 360;
+const PHOTO_SWAP_MAX_WAIT_MS = 120;
 
 let currentComplimentIndex = 0;
 let currentPhotoIndex = 0;
 let isAnimating = false;
 let activePhotoElement = mainPhoto;
-
 const loadedPhotoSrcSet = new Set();
-const photoPreloadPromises = new Map();
 
 function safeTextFromList(list, index, fallback) {
   return list[index] ?? fallback;
@@ -112,9 +111,15 @@ function clearPressedState() {
 }
 
 function preloadPhoto(src) {
+  if (!src) return Promise.resolve();
+  if (loadedPhotoSrcSet.has(src)) return Promise.resolve();
+
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = resolve;
+    img.onload = () => {
+      loadedPhotoSrcSet.add(src);
+      resolve();
+    };
     img.onerror = resolve;
     img.src = src;
   });
@@ -152,9 +157,18 @@ function swapToNext() {
 
   backText.textContent = nextCompliment;
   flipCardInner.classList.add('is-flipping');
-  preloadPhoto(nextPhotoData.src).then(() => {
+  let hasSwappedPhoto = false;
+
+  const startPhotoSwap = () => {
+    if (hasSwappedPhoto) return;
+    hasSwappedPhoto = true;
     runPhotoSwap(nextPhotoData);
-  });
+  };
+
+  Promise.race([
+    preloadPhoto(nextPhotoData.src),
+    new Promise((resolve) => window.setTimeout(resolve, PHOTO_SWAP_MAX_WAIT_MS))
+  ]).then(startPhotoSwap);
 
   window.setTimeout(() => {
     frontText.textContent = nextCompliment;
@@ -196,10 +210,10 @@ if (nextPhoto) {
   nextPhoto.setAttribute('aria-hidden', 'true');
 }
 
-nextPhoto.addEventListener('error', () => {
-  nextPhoto.src = 'assets/images/photos/1.png';
-  nextPhoto.alt = '';
-});
-
 initializeContent();
-warmupPhotoCache();
+preloadPhoto(normalizePhoto(photos[currentPhotoIndex]).src);
+window.setTimeout(() => {
+  photos.forEach((photoItem) => {
+    preloadPhoto(normalizePhoto(photoItem).src);
+  });
+}, 0);

@@ -169,14 +169,13 @@ select {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 170ms ease;
+  transition: opacity 120ms ease;
   pointer-events: none;
 }
 
 .photo-image.is-active {
   opacity: 1;
 }
-
 
 .interaction-column {
   width: min(100%, var(--content-width));
@@ -196,7 +195,7 @@ select {
   width: 100%;
   min-height: 188px;
   transform-style: preserve-3d;
-  transition: transform 0.42s cubic-bezier(0.22, 0.72, 0.2, 1);
+  transition: transform 0.36s cubic-bezier(0.22, 0.72, 0.2, 1);
 }
 
 .flip-card-inner.is-flipping {
