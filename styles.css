@@ -315,7 +315,6 @@ select {
     0.04em 0.04em 0.07em 0 rgba(73, 16, 17, 0.12);
 }
 
-
 .button:disabled {
   cursor: default;
 }
@@ -516,5 +515,36 @@ select {
   .button .button-inner span {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── Falling hearts ── */
+.heart-rain-particle {
+  position: fixed;
+  top: -2.5rem;
+  pointer-events: none;
+  z-index: 1;
+  user-select: none;
+  line-height: 1;
+  animation: heartFall var(--fall-duration, 3s) linear forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes heartFall {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  8% {
+    transform: translateY(4vh) translateX(calc(var(--dx) * 0.08));
+    opacity: 0.88;
+  }
+  85% {
+    transform: translateY(90vh) translateX(calc(var(--dx) * 0.85));
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(108vh) translateX(var(--dx));
+    opacity: 0;
   }
 }
